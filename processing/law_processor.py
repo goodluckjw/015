@@ -1,10 +1,10 @@
+import streamlit as st
 import requests
 import xml.etree.ElementTree as ET
 import time
-import os
 
-# API 키는 환경 변수에서 가져오거나 직접 설정
-API_KEY = os.environ.get("LAW_API_KEY", "your_api_key_here")
+# Streamlit secrets에서 직접 불러오기
+API_KEY = st.secrets["api_key"]
 
 def get_law_list():
     """국가법령정보 OpenAPI에서 법률 목록을 가져옵니다."""
@@ -34,19 +34,15 @@ def search_law_content(law_id, search_word):
         if response.status_code == 200:
             root = ET.fromstring(response.content)
             matches = []
-            
-            # 조항 검색
             for article in root.findall('.//article'):
                 article_num = article.find('articleNo').text if article.find('articleNo') is not None else ""
                 content = article.find('content').text if article.find('content') is not None else ""
-                
                 if search_word in content:
                     matches.append({
                         "type": "article",
                         "number": article_num,
                         "content": content
                     })
-            
             return matches
         else:
             print(f"법률 내용 API 요청 실패: {response.status_code}")
@@ -58,38 +54,25 @@ def search_law_content(law_id, search_word):
 def generate_amendment_sentence(law_name, article_info, search_word, replace_word):
     """개정 문장을 생성합니다."""
     article_num = article_info["number"]
-    content = article_info["content"]
-    
-    # 간단한 개정 문장 생성
-    amendment = f"{law_name} 제{article_num}조 중 \"{search_word}\"를 \"{replace_word}\"로 한다."
+    amendment = f"{law_name} 제{article_num}조 중 "{search_word}"를 "{replace_word}"로 한다."
     return amendment
 
 def process_laws(search_word, replace_word):
     """법률을 검색하고 개정 문장을 생성합니다."""
     result = {}
-    
-    # 법률 목록 가져오기
     laws = get_law_list()
     if laws is None:
         return None
-    
-    # 각 법률에 대해 검색 수행
     for law in laws:
         law_id = law["id"]
         law_name = law["name"]
-        
-        # API 호출 제한 방지를 위한 지연
         time.sleep(0.5)
-        
-        # 법률 내용 검색
         matches = search_law_content(law_id, search_word)
         if matches is None:
             continue
-        
         if matches:
             result[law_name] = []
             for match in matches:
                 amendment = generate_amendment_sentence(law_name, match, search_word, replace_word)
                 result[law_name].append(amendment)
-    
     return result
