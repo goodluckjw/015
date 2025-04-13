@@ -1,14 +1,13 @@
-import streamlit as st
 import requests
 import xml.etree.ElementTree as ET
 import time
+import os
 
-# Streamlit secrets에서 직접 불러오기
-API_KEY = st.secrets["api_key"]
+API_KEY = os.environ.get("LAW_API_KEY", "your_api_key_here")
+OC = "chetera"  # 사용자의 OC 값 (이메일 앞부분)
 
 def get_law_list():
-    """국가법령정보 OpenAPI에서 법률 목록을 가져옵니다."""
-    url = f"http://open.law.go.kr/LSO/openApi/lawSearch.do?type=XML&key={API_KEY}&page=1"
+    url = f"http://open.law.go.kr/LSO/openApi/lawSearch.do?OC={OC}&type=XML&key={API_KEY}&page=1"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
@@ -27,8 +26,7 @@ def get_law_list():
         return None
 
 def search_law_content(law_id, search_word):
-    """특정 법률의 내용에서 검색어를 찾습니다."""
-    url = f"http://open.law.go.kr/LSO/openApi/lawContent.do?type=XML&key={API_KEY}&lawId={law_id}"
+    url = f"http://open.law.go.kr/LSO/openApi/lawContent.do?OC={OC}&type=XML&key={API_KEY}&lawId={law_id}"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
@@ -52,13 +50,11 @@ def search_law_content(law_id, search_word):
         return None
 
 def generate_amendment_sentence(law_name, article_info, search_word, replace_word):
-    """개정 문장을 생성합니다."""
     article_num = article_info["number"]
-    amendment = f"{law_name} 제{article_num}조 중 "{search_word}"를 "{replace_word}"로 한다."
+    amendment = f"{law_name} 제{article_num}조 중 \"{search_word}\"를 \"{replace_word}\"로 한다."
     return amendment
 
 def process_laws(search_word, replace_word):
-    """법률을 검색하고 개정 문장을 생성합니다."""
     result = {}
     laws = get_law_list()
     if laws is None:
